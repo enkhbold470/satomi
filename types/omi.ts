@@ -64,6 +64,34 @@ export function extractTextFromSegments(segments: OMISegment[]): string {
 }
 
 /**
+ * OMI real-time audio payload
+ */
+export interface OMIRealtimeAudioPayload {
+  session_id: string;
+  audio_base64: string;
+  audio_format?: 'pcm16' | 'g711_ulaw' | 'g711_alaw';
+  timestamp?: string;
+}
+
+/**
+ * OpenAI Realtime API event types
+ */
+export interface RealtimeAPIEvent {
+  type: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Realtime session response
+ */
+export interface RealtimeSessionResponse {
+  message: string;
+  session_id: string;
+  audio_format?: string;
+  timestamp: string;
+}
+
+/**
  * Helper function to process OMI payload
  */
 export function processOMIPayload(payload: OMIWebhookPayload): ProcessedTranscript {
