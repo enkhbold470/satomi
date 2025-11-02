@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { explainJapaneseConcept } from '@/lib/actions/japanese-concept-action';
-
+import { OMIMemoryPayload } from '@/types/omi';
 /**
  * OMI Memory Creation Integration
  * 
@@ -80,9 +80,9 @@ Learn more at Satomi
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body: OMIMemoryPayload = await request.json();
     
-    const { memory_id, created_at } = body;
+    const { memory_id } = body;
     
     // Extract transcript from segments array or fallback to direct field
     let transcript = '';
@@ -95,35 +95,11 @@ export async function POST(request: NextRequest) {
         .trim();
     } else {
       // Fallback for testing
-      transcript = body.transcript || '';
-    }
-
-    console.log('OMI memory webhook received:', {
-      memory_id,
-      created_at,
-      segmentCount: body.segments?.length || 0,
-      transcriptLength: transcript.length,
-      timestamp: new Date().toISOString(),
-    });
-
-    if (!transcript) {
-      return NextResponse.json({
-        status: 'received',
-        annotation: null,
-      });
+      transcript = body.segments[0]?.text || '';
     }
 
     // Detect Japanese concepts in the conversation
     const detectedConcepts = detectJapaneseConcepts(transcript);
-
-    if (detectedConcepts.length === 0) {
-      return NextResponse.json({
-        status: 'received',
-        annotation: null,
-        message: 'No Japanese concepts detected in this conversation.',
-      });
-    }
-
     // Create annotation with concept explanations
     const annotation = await createConceptAnnotation(detectedConcepts);
 
