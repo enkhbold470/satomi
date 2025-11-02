@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { explainJapaneseConcept } from '@/lib/actions/japanese-concept-action';
+import { OMIWebhookPayload } from '@/types/omi';
 
 /**
  * OMI Webhook Integration
@@ -83,16 +84,30 @@ A beautifully explained Japanese concept from Satomi 🎌
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body: OMIWebhookPayload = await request.json();
     
-    const transcript = body.transcript || body.text || '';
-    const sessionId = body.session_id || body.sessionId;
-    const userId = body.user_id || body.userId;
+    // Extract transcript from OMI segments array or fallback to direct fields
+    let transcript = '';
+    
+    if (body.segments && Array.isArray(body.segments) && body.segments.length > 0) {
+      // Real OMI format: combine all segment texts
+      transcript = body.segments
+        .map((segment: { text: string }) => segment.text)
+        .join(' ')
+        .trim();
+    } else {
+      // Fallback for testing: direct transcript/text field
+      transcript = body.segments[0].text || '';
+    }
+    
+    const sessionId = body.session_id;
+    const userId = body.segments[0].person_id;
 
     console.log('OMI webhook received:', {
       transcript,
       sessionId,
       userId,
+      segmentCount: body.segments?.length || 0,
       timestamp: new Date().toISOString(),
     });
 

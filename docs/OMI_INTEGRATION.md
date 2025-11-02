@@ -109,10 +109,21 @@ Receives real-time transcripts from OMI and returns concept explanations.
 **Request from OMI**:
 ```json
 {
-  "transcript": "What is ikigai?",
-  "session_id": "session_123",
-  "user_id": "user_456",
-  "segments": [...]
+  "session_id": "RYEXvYutQeb3OwmmEsYDgiafmd02",
+  "segments": [
+    {
+      "id": "seg_001",
+      "text": "What is ikigai?",
+      "speaker": "SPEAKER_0",
+      "speaker_id": 0,
+      "is_user": true,
+      "person_id": null,
+      "start": 0.0,
+      "end": 2.5,
+      "translations": [],
+      "speech_profile_processed": true
+    }
+  ]
 }
 ```
 
@@ -135,8 +146,18 @@ Triggered when OMI creates a memory. Annotates memories that mention Japanese co
 ```json
 {
   "memory_id": "mem_789",
-  "transcript": "I learned about ikigai today...",
-  "summary": "Conversation about Japanese philosophy",
+  "session_id": "session_123",
+  "segments": [
+    {
+      "id": "seg_001",
+      "text": "I learned about ikigai today...",
+      "speaker": "SPEAKER_0",
+      "speaker_id": 0,
+      "is_user": true,
+      "start": 0.0,
+      "end": 5.0
+    }
+  ],
   "created_at": "2025-11-01T..."
 }
 ```

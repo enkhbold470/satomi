@@ -82,11 +82,27 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    const { memory_id, transcript, created_at } = body;
+    const { memory_id, created_at } = body;
+    
+    // Extract transcript from segments array or fallback to direct field
+    let transcript = '';
+    
+    if (body.segments && Array.isArray(body.segments) && body.segments.length > 0) {
+      // Real OMI format: combine all segment texts
+      transcript = body.segments
+        .map((segment: { text: string }) => segment.text)
+        .join(' ')
+        .trim();
+    } else {
+      // Fallback for testing
+      transcript = body.transcript || '';
+    }
 
     console.log('OMI memory webhook received:', {
       memory_id,
       created_at,
+      segmentCount: body.segments?.length || 0,
+      transcriptLength: transcript.length,
       timestamp: new Date().toISOString(),
     });
 
