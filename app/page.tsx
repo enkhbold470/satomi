@@ -21,8 +21,14 @@ export default function Home() {
         if (!res.ok) throw new Error(`Status ${res.status}`);
         const json = await res.json();
         setData(json);
-      } catch (err: any) {
-        setError(err.message || "Unknown error");
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Unknown error");
+        }
+        setError(err instanceof Error ? err.message : "Unknown error");
+        setData(null);
       } finally {
         setLoading(false);
       }
