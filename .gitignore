@@ -43,7 +43,3 @@ next-env.d.ts
 # audio files
 /audio/
 *.wav
-
-# database
-*.db
-*.db-journal
