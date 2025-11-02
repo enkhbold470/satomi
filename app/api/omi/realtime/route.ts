@@ -3,7 +3,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { createReadStream } from 'fs';
 import { join } from 'path';
 import openai from '@/lib/openai';
-import { saveTranscript } from '@/lib/db-transcripts';
+import { prisma } from '@/lib/prisma';
 
 /**
  * OMI Real-Time Audio Webhook
@@ -240,18 +240,23 @@ async function processAudioChunk(session: AudioSession): Promise<void> {
     // Transcribe with Whisper
     const transcript = await transcribeAudio(filepath);
     
-    // Store transcript
+    // Store transcript in memory and database
     if (transcript && transcript.trim()) {
-      // Save to in-memory session
       session.transcripts.push(transcript);
+      console.log(`[PROCESS SUCCESS] Transcript stored in memory. Total transcripts: ${session.transcripts.length}`);
       
-      // Save to database
+      // Save to Prisma database
       try {
-        const saved = saveTranscript(session.sessionId, transcript, filepath);
-        console.log(`[DB] Transcript saved to database with ID: ${saved.id}`);
-        console.log(`[PROCESS SUCCESS] Transcript stored. Total transcripts: ${session.transcripts.length}`);
-      } catch (error) {
-        console.error(`[DB ERROR] Failed to save transcript to database:`, error);
+        await prisma.transcript.create({
+          data: {
+            sessionId: session.sessionId,
+            transcript: transcript.trim(),
+            audioFilepath: filepath,
+          },
+        });
+        console.log(`[DB SUCCESS] Transcript saved to database`);
+      } catch (dbError) {
+        console.error(`[DB ERROR] Failed to save transcript to database:`, dbError);
         // Continue even if DB save fails
       }
     } else {
