@@ -56,13 +56,15 @@ curl -X POST http://localhost:3000/api/japanese-concept \
 
 Satomi integrates with [OMI AI Wearable](https://www.omi.me) for hands-free, conversational access to Japanese concepts.
 
+✅ **Tested with real OMI device** - Backend handles actual OMI payload structure with segments array!
+
 **Quick Setup:**
 1. Deploy Satomi to a public URL
 2. Create an OMI integration app
 3. Set webhook URL: `https://your-domain.com/api/omi/webhook`
 4. Ask OMI: "What is ikigai?"
 
-See [OMI Integration Guide](./docs/OMI_INTEGRATION.md) for complete setup instructions.
+See [OMI Integration Guide](./docs/OMI_INTEGRATION.md) for complete setup instructions, or [Real Payload Fix](./REAL_OMI_PAYLOAD_FIX.md) for technical details.
 
 ## API Endpoints
 
