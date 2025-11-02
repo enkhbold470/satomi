@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { explainJapaneseConcept } from '@/lib/actions/japanese-concept-action';
+import OpenAI from 'openai';
 import { OMIWebhookPayload } from '@/types/omi';
 
 /**
@@ -8,100 +8,136 @@ import { OMIWebhookPayload } from '@/types/omi';
  * POST /api/omi/webhook
  * 
  * Receives real-time transcripts from OMI wearable device and returns
- * beautifully explained Japanese concepts when detected.
+ * Zen Buddhist-style explanations of any topic using GPT-4o-mini.
  * 
  * Request body from OMI:
  * {
- *   "transcript": "What is ikigai?",
  *   "segments": [...],
  *   "session_id": "...",
- *   "user_id": "..."
  * }
  * 
  * Response:
  * {
- *   "message": "Beautifully formatted Japanese concept explanation"
+ *   "message": "Zen Buddhist-style explanation"
  * }
  */
 
-// Keywords that trigger Japanese concept explanations
-const JAPANESE_CONCEPT_TRIGGERS = [
-  'what is',
-  'explain',
-  'tell me about',
-  'meaning of',
-  'define',
-  'japanese concept',
-  'japanese philosophy',
-  'ikigai',
-  'wabi-sabi',
-  'kaizen',
-  'kintsugi',
-  'mono no aware',
-  'omotenashi',
-  'gaman',
-  'shouganai',
-  'ichi-go ichi-e',
-];
+console.log("Initializing OpenAI client for Satomi OMI Webhook...");
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+// Wake word that triggers the assistant
+const WAKE_WORDS = ['hey satomi', 'hey, satomi', 'satomi', 'tommy', 'tummy', 'hey satomi'];
+console.log("Wake word set:", WAKE_WORDS);
 
 /**
- * Detects if transcript is asking about a Japanese concept
+ * Detects if transcript contains the wake word
  */
-function isJapaneseConceptQuery(transcript: string): boolean {
-  const lowerTranscript = transcript.toLowerCase();
-  return JAPANESE_CONCEPT_TRIGGERS.some(trigger => 
-    lowerTranscript.includes(trigger)
-  );
+function isWakeWordDetected(transcript: string): boolean {
+  console.log("Checking for wake word in transcript:", transcript);
+  const detected = WAKE_WORDS.some(word => transcript.toLowerCase().includes(word));
+  console.log(`Wake word detected: ${detected}`);
+  return detected;
 }
 
 /**
- * Formats the concept explanation for OMI display
+ * Extracts the user's query after the wake word
  */
-function formatForOMI(conceptData: {
-  name: string;
-  explanation: string;
-  origin: string;
-  application: string;
-}): string {
-  const { name, explanation, origin, application } = conceptData;
+function extractQuery(transcript: string): string {
+  console.log("Extracting query from transcript:", transcript);
+  const lowerTranscript = transcript.toLowerCase();
+  const wakeWordIndex = WAKE_WORDS.findIndex(word => lowerTranscript.includes(word));
   
-  return `
-🇯🇵 ${name}
+  if (wakeWordIndex === -1) {
+    console.log("Wake word not found. Returning original transcript as query.");
+    return transcript;
+  }
+  
+  // Extract everything after "hey satomi"
+  const extracted = transcript.substring(wakeWordIndex + WAKE_WORDS[wakeWordIndex]?.length || 0).trim();
+  console.log("Extracted query:", extracted);
+  return extracted;
+}
 
-✨ Meaning:
+/**
+ * Calls GPT-4o-mini to generate Zen Buddhist-style explanation
+ */
+async function getZenExplanation(query: string): Promise<string> {
+  console.log("Calling GPT-4o-mini for Zen explanation of:", query);
+  try {
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: `You are Satomi, a wise Zen Buddhist teacher who explains complex concepts with profound simplicity, mindfulness, and insight. Your explanations blend ancient wisdom with modern understanding. Use metaphors from nature, tea ceremonies, and daily mindful practice. Keep responses concise yet deeply meaningful. Format your responses with gentle structure and thoughtful emojis.`
+        },
+        {
+          role: 'user',
+          content: `Please explain: ${query}`
+        }
+      ],
+      max_tokens: 500,
+      temperature: 0.7,
+    });
+
+    const explanation = completion.choices[0].message.content || 'The answer resides in the silence between questions. 🍃';
+    console.log("Received Zen explanation from GPT-4o-mini:", explanation);
+    return explanation;
+  } catch (error) {
+    console.error('Error calling GPT-4o-mini:', error);
+    throw new Error('Unable to generate explanation at this moment.');
+  }
+}
+
+/**
+ * Formats the Zen explanation for OMI display
+ */
+function formatZenResponse(query: string, explanation: string): string {
+  console.log("Formatting Zen response...");
+  const formatted = `
+🧘 Satomi's Wisdom
+
+📿 Question:
+${query}
+
+🌸 Understanding:
 ${explanation}
 
-📜 Origin:
-${origin}
-
-💡 How to Apply:
-${application}
-
 ---
-A beautifully explained Japanese concept from Satomi 🎌
+Explained with mindful clarity by Satomi 🍵
   `.trim();
+  console.log("Formatted Zen response:", formatted);
+  return formatted;
 }
 
 export async function POST(request: NextRequest) {
+  console.log("Received POST request to OMI webhook endpoint.");
   try {
     const body: OMIWebhookPayload = await request.json();
+    console.log("Parsed OMI payload:", body);
     
-    // Extract transcript from OMI segments array or fallback to direct fields
+    // Extract transcript from OMI segments array
     let transcript = '';
     
     if (body.segments && Array.isArray(body.segments) && body.segments.length > 0) {
-      // Real OMI format: combine all segment texts
+      console.log("Extracting transcript from segments array...");
       transcript = body.segments
-        .map((segment: { text: string }) => segment.text)
+        .map((segment: { text: string }) => {
+          console.log("Segment text:", segment.text);
+          return segment.text;
+        })
         .join(' ')
         .trim();
+      console.log("Combined transcript from segments:", transcript);
     } else {
-      // Fallback for testing: direct transcript/text field
-      transcript = body.segments[0].text || '';
+      transcript = body.segments && body.segments[0]?.text ? body.segments[0].text : '';
+      console.log("Fallback transcript extraction. Transcript:", transcript);
     }
     
     const sessionId = body.session_id;
-    const userId = body.segments[0].person_id;
+    const userId = body.segments && body.segments[0]?.person_id;
 
     console.log('OMI webhook received:', {
       transcript,
@@ -111,46 +147,53 @@ export async function POST(request: NextRequest) {
       timestamp: new Date().toISOString(),
     });
 
-    // Check if this is a Japanese concept query
+    // Check if transcript is empty
     if (!transcript || transcript.trim().length === 0) {
+      console.log("Transcript is empty. Returning help message.");
       return NextResponse.json({
-        message: 'Ready to explain Japanese concepts! Ask me about ikigai, wabi-sabi, kaizen, or any Japanese philosophy.',
+        message: '🧘 Say "Hey Satomi" followed by any question about math, science, philosophy, or life. I will explain it with Zen wisdom.',
       });
     }
 
-    // Only process Japanese concept queries
-    if (!isJapaneseConceptQuery(transcript)) {
-      // Return a helpful prompt
+    // Check for wake word
+    if (!isWakeWordDetected(transcript)) {
+      console.log('Wake word not detected in transcript.');
       return NextResponse.json({
-        message: '🎌 Ask me about Japanese concepts like:\n• Ikigai (purpose)\n• Wabi-Sabi (beauty in imperfection)\n• Kaizen (continuous improvement)\n• Kintsugi (art of repair)\n...and many more!',
+        message: '🌸 Say "Hey Satomi" to ask me about:\n• Mathematics & Science\n• Physics (Newton\'s Laws, Quantum Theory)\n• Philosophy & Life\n• Technology & Nature\n...or anything else you wish to understand deeply.',
       });
     }
 
-    // Process the query through our Japanese concept system
-    const result = await explainJapaneseConcept({
-      query: transcript,
+    // Extract the user's query
+    const userQuery = extractQuery(transcript);
+
+    if (!userQuery || userQuery.length === 0) {
+      console.log('Wake word was detected but no question was found after wake word.');
+      return NextResponse.json({
+        message: '🍃 You called upon me, but I did not hear your question. Please ask again after "Hey Satomi".',
+      });
+    }
+
+    // Get Zen-style explanation from GPT-4o-mini
+    const zenExplanation = await getZenExplanation(userQuery);
+
+    // Format the response
+    const formattedMessage = formatZenResponse(userQuery, zenExplanation);
+
+    console.log('Responding with final Zen message:', {
+      message: formattedMessage,
+      query: userQuery
     });
-
-    if (!result.success || !result.concept) {
-      return NextResponse.json({
-        message: `I couldn't process that query. ${result.error || 'Please try asking about a specific Japanese concept.'}`,
-      });
-    }
-
-    // Format the response for OMI
-    const formattedMessage = formatForOMI(result.concept);
 
     return NextResponse.json({
       message: formattedMessage,
-      concept_name: result.concept.name,
-      timestamp: result.timestamp,
+      query: userQuery,
+      timestamp: new Date().toISOString(),
     });
 
   } catch (error) {
     console.error('Error in OMI webhook:', error);
-    
     return NextResponse.json({
-      message: 'An error occurred while processing your request. Please try again.',
+      message: '⛩️ The path to understanding is temporarily clouded. Please try again, and I shall guide you.',
       error: error instanceof Error ? error.message : 'Unknown error',
     }, { status: 500 });
   }
@@ -158,11 +201,12 @@ export async function POST(request: NextRequest) {
 
 // Optional: GET endpoint for webhook verification
 export async function GET() {
+  console.log("Received GET request to OMI webhook endpoint. Sending status and info.");
   return NextResponse.json({
     status: 'active',
-    service: 'Satomi Japanese Concept Learning',
-    description: 'OMI integration for beautifully explained Japanese concepts',
-    version: '1.0.0',
+    service: 'Satomi - Zen Buddhist AI Teacher',
+    description: 'OMI integration for mindful explanations of any topic',
+    version: '2.0.0',
+    wake_word: WAKE_WORDS.join(', '),
   });
 }
-
