@@ -3,6 +3,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { createReadStream } from 'fs';
 import { join } from 'path';
 import openai from '@/lib/openai';
+import { saveTranscript } from '@/lib/db-transcripts';
 
 /**
  * OMI Real-Time Audio Webhook
@@ -241,8 +242,18 @@ async function processAudioChunk(session: AudioSession): Promise<void> {
     
     // Store transcript
     if (transcript && transcript.trim()) {
+      // Save to in-memory session
       session.transcripts.push(transcript);
-      console.log(`[PROCESS SUCCESS] Transcript stored. Total transcripts: ${session.transcripts.length}`);
+      
+      // Save to database
+      try {
+        const saved = saveTranscript(session.sessionId, transcript, filepath);
+        console.log(`[DB] Transcript saved to database with ID: ${saved.id}`);
+        console.log(`[PROCESS SUCCESS] Transcript stored. Total transcripts: ${session.transcripts.length}`);
+      } catch (error) {
+        console.error(`[DB ERROR] Failed to save transcript to database:`, error);
+        // Continue even if DB save fails
+      }
     } else {
       console.log(`[PROCESS] Empty transcript, not storing`);
     }
